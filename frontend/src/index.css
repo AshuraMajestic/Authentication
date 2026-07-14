@@ -1,1 +1,88 @@
 @import "tailwindcss";
+
+@theme {
+  --font-display: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --font-body: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+
+  --color-canvas: #F5F7FA;
+  --color-surface: #FFFFFF;
+  --color-surface-raised: #FDFDFE;
+  --color-ink: #14162B;
+  --color-ink-soft: #565A78;
+  --color-line: #E2E5EF;
+
+  --color-indigo: #3730A3;
+  --color-indigo-deep: #241D6E;
+  --color-indigo-tint: #EEEDFB;
+
+  --color-amber: #F59E0B;
+  --color-amber-tint: #FEF3DE;
+
+  --color-good: #0E9F6E;
+  --color-bad: #DC2626;
+}
+
+body {
+  font-family: var(--font-body);
+  background-color: var(--color-canvas);
+  color: var(--color-ink);
+}
+
+/* Keycard flip container */
+.keycard-perspective {
+  perspective: 1600px;
+}
+.keycard {
+  transform-style: preserve-3d;
+  transition: transform 0.6s cubic-bezier(0.65, 0, 0.35, 1);
+}
+.keycard.is-flipped {
+  transform: rotateY(180deg);
+}
+.keycard-face {
+  backface-visibility: hidden;
+}
+.keycard-face.back {
+  transform: rotateY(180deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .keycard {
+    transition: none;
+  }
+}
+
+/* Scanline effect for OTP/security step */
+.scanline {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  border-radius: inherit;
+}
+.scanline::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--color-amber), transparent);
+  opacity: 0.7;
+  animation: scan 2.4s linear infinite;
+}
+@keyframes scan {
+  0% { top: -5%; }
+  100% { top: 105%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .scanline::after { animation: none; display: none; }
+}
+
+.otp-box:focus-visible,
+button:focus-visible,
+a:focus-visible,
+input:focus-visible {
+  outline: 2px solid var(--color-indigo);
+  outline-offset: 2px;
+}
