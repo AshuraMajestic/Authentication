@@ -11,15 +11,18 @@ import type { OAuthProvider, Role, Session, User } from "../types/auth";
 import {
   logoutOnServer,
   refreshSession,
+  registerUser,
   requestPasswordLogin,
   resendOtp,
   signInWithOAuth,
   verifyOtpAndLogin,
 } from "../mock/mockBackend";
 
-const SESSION_STORAGE_KEY = import.meta.env.VITE_SESSION_STORAGE_KEY;
+const SESSION_STORAGE_KEY = "auth-frontend:session";
 
 type LoginStage = "credentials" | "otp";
+
+type AuthFlow = "login" | "signup";
 
 interface PendingLogin {
   email: string;
@@ -30,11 +33,13 @@ interface AuthContextValue {
   user: User | null;
   status: "loading" | "authenticated" | "unauthenticated";
   loginStage: LoginStage;
+  authFlow: AuthFlow;
   pendingLogin: PendingLogin | null;
   error: string | null;
   isSubmitting: boolean;
 
   submitCredentials: (email: string, password: string) => Promise<void>;
+  submitSignup: (name: string, email: string, password: string) => Promise<void>;
   submitOtp: (code: string) => Promise<boolean>;
   resendCode: () => Promise<void>;
   loginWithOAuth: (provider: OAuthProvider) => Promise<void>;
@@ -63,6 +68,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [status, setStatus] = useState<AuthContextValue["status"]>("loading");
   const [loginStage, setLoginStage] = useState<LoginStage>("credentials");
+  const [authFlow, setAuthFlow] = useState<AuthFlow>("login");
   const [pendingLogin, setPendingLogin] = useState<PendingLogin | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -77,11 +83,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+
   useEffect(() => {
     const stored = readStoredSession();
     setSession(stored);
     setStatus(stored ? "authenticated" : "unauthenticated");
   }, []);
+
 
   useEffect(() => {
     if (refreshTimer.current) clearTimeout(refreshTimer.current);
@@ -115,6 +123,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setError(result.error);
       return;
     }
+    setAuthFlow("login");
+    setPendingLogin({ email: result.data.otpSentTo, devOtpHint: result.data.devOtpHint });
+    setLoginStage("otp");
+  }, []);
+  const submitSignup = useCallback(async (name: string, email: string, password: string) => {
+    setIsSubmitting(true);
+    setError(null);
+    const result = await registerUser(name, email, password);
+    setIsSubmitting(false);
+
+    if (!result.ok) {
+      setError(result.error);
+      return;
+    }
+    setAuthFlow("signup");
     setPendingLogin({ email: result.data.otpSentTo, devOtpHint: result.data.devOtpHint });
     setLoginStage("otp");
   }, []);
@@ -170,6 +193,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const resetLoginFlow = useCallback(() => {
     setLoginStage("credentials");
+    setAuthFlow("login");
     setPendingLogin(null);
     setError(null);
   }, []);
@@ -191,10 +215,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       user: session?.user ?? null,
       status,
       loginStage,
+      authFlow,
       pendingLogin,
       error,
       isSubmitting,
       submitCredentials,
+      submitSignup,
       submitOtp,
       resendCode,
       loginWithOAuth,
@@ -207,10 +233,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       session,
       status,
       loginStage,
+      authFlow,
       pendingLogin,
       error,
       isSubmitting,
       submitCredentials,
+      submitSignup,
       submitOtp,
       resendCode,
       loginWithOAuth,

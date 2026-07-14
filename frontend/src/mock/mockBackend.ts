@@ -1,16 +1,6 @@
 import type { ApiResult, AuthTokens, OAuthProvider, Role, User } from "../types/auth";
 
-/**
- * ---------------------------------------------------------------------------
- * MOCK BACKEND
- * ---------------------------------------------------------------------------
- * Everything in this file stands in for a real server. In a real app this
- * whole module is deleted and replaced with `fetch("/api/...")` calls to
- * your actual backend. Nothing outside this file should know or care that
- * the "backend" here is fake — the function signatures and ApiResult<T>
- * shape are what a real API client would also expose.
- * ---------------------------------------------------------------------------
- */
+
 
 const NETWORK_DELAY_MS = 650;
 
@@ -26,8 +16,8 @@ interface FakeUserRecord {
   avatarInitials: string;
 }
 
-// Seed "database" — try these in the demo.
-const FAKE_USERS: FakeUserRecord[] = [
+// Seed "database" — try these in the demo. `let` so signups can append to it.
+let FAKE_USERS: FakeUserRecord[] = [
   {
     id: "u_admin_01",
     name: "Asha Rao",
@@ -54,7 +44,6 @@ const FAKE_USERS: FakeUserRecord[] = [
   },
 ];
 
-
 const otpStore = new Map<string, { code: string; expiresAt: number }>();
 
 function makeTokens(userId: string, role: Role): AuthTokens {
@@ -65,7 +54,7 @@ function makeTokens(userId: string, role: Role): AuthTokens {
   return {
     accessToken: `${header}.${payload}.mock-signature`,
     refreshToken: `refresh_${userId}_${Math.random().toString(36).slice(2)}`,
-    expiresAt: Date.now() + 1000 * 60 * 30, 
+    expiresAt: Date.now() + 1000 * 60 * 30, // 30 min
   };
 }
 
@@ -80,25 +69,72 @@ function toPublicUser(record: FakeUserRecord, provider: User["provider"]): User 
   };
 }
 
+function dispatchOtp(email: string): string {
+  const code = String(Math.floor(100000 + Math.random() * 900000));
+  otpStore.set(email.toLowerCase(), { code, expiresAt: Date.now() + 1000 * 60 * 5 });
+  return code;
+}
+
+function findByEmail(email: string) {
+  return FAKE_USERS.find((u) => u.email.toLowerCase() === email.trim().toLowerCase());
+}
+
+function initials(name: string): string {
+  const parts = name.trim().split(/\s+/);
+  return (parts[0]?.[0] ?? "").concat(parts[1]?.[0] ?? "").toUpperCase() || "??";
+}
+
 export async function requestPasswordLogin(
   email: string,
   password: string
 ): Promise<ApiResult<{ otpSentTo: string; devOtpHint: string }>> {
-  const record = FAKE_USERS.find(
-    (u) => u.email.toLowerCase() === email.trim().toLowerCase()
-  );
+  const record = findByEmail(email);
 
-  if (!record || record.password !== password) {
-    return delay({ ok: false, error: "Invalid email or password." });
+  if (!record) {
+    return delay({
+      ok: false,
+      error: "No account with that email yet. Create one instead?",
+    });
+  }
+  if (record.password !== password) {
+    return delay({ ok: false, error: "Incorrect password." });
   }
 
-  const code = String(Math.floor(100000 + Math.random() * 900000));
-  otpStore.set(record.email, { code, expiresAt: Date.now() + 1000 * 60 * 5 });
-
+  const code = dispatchOtp(record.email);
   return delay({
     ok: true,
     data: { otpSentTo: record.email, devOtpHint: code },
   });
+}
+
+
+export async function registerUser(
+  name: string,
+  email: string,
+  password: string
+): Promise<ApiResult<{ otpSentTo: string; devOtpHint: string }>> {
+  if (findByEmail(email)) {
+    return delay({
+      ok: false,
+      error: "An account with that email already exists. Try signing in instead.",
+    });
+  }
+  if (password.length < 8) {
+    return delay({ ok: false, error: "Password must be at least 8 characters." });
+  }
+
+  const record: FakeUserRecord = {
+    id: `u_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
+    name: name.trim(),
+    email: email.trim(),
+    password,
+    role: "user",
+    avatarInitials: initials(name),
+  };
+  FAKE_USERS = [...FAKE_USERS, record];
+
+  const code = dispatchOtp(record.email);
+  return delay({ ok: true, data: { otpSentTo: record.email, devOtpHint: code } });
 }
 
 export async function verifyOtpAndLogin(
@@ -106,9 +142,7 @@ export async function verifyOtpAndLogin(
   code: string
 ): Promise<ApiResult<{ user: User; tokens: AuthTokens }>> {
   const entry = otpStore.get(email.trim().toLowerCase());
-  const record = FAKE_USERS.find(
-    (u) => u.email.toLowerCase() === email.trim().toLowerCase()
-  );
+  const record = findByEmail(email);
 
   if (!entry || !record) {
     return delay({ ok: false, error: "No OTP request found. Start again." });
@@ -131,16 +165,10 @@ export async function verifyOtpAndLogin(
 export async function resendOtp(
   email: string
 ): Promise<ApiResult<{ devOtpHint: string }>> {
-  const record = FAKE_USERS.find(
-    (u) => u.email.toLowerCase() === email.trim().toLowerCase()
-  );
+  const record = findByEmail(email);
   if (!record) return delay({ ok: false, error: "Unknown account." });
-
-  const code = String(Math.floor(100000 + Math.random() * 900000));
-  otpStore.set(record.email, { code, expiresAt: Date.now() + 1000 * 60 * 5 });
-  return delay({ ok: true, data: { devOtpHint: code } });
+  return delay({ ok: true, data: { devOtpHint: dispatchOtp(record.email) } });
 }
-
 
 export async function signInWithOAuth(
   provider: OAuthProvider
@@ -179,3 +207,41 @@ export const DEMO_ACCOUNTS = FAKE_USERS.map(({ email, password, role }) => ({
   password,
   role,
 }));
+
+export const PROMOTABLE_ROLES = ["user", "manager"] as const;
+export type PromotableRole = (typeof PROMOTABLE_ROLES)[number];
+
+export interface DirectoryUser {
+  id: string;
+  name: string;
+  email: string;
+  role: Role;
+}
+
+export async function listUsers(): Promise<ApiResult<DirectoryUser[]>> {
+  return delay(
+    { ok: true, data: FAKE_USERS.map(({ password: _password, ...rest }) => rest) },
+    400
+  );
+}
+
+export async function updateUserRole(
+  userId: string,
+  nextRole: PromotableRole
+): Promise<ApiResult<DirectoryUser>> {
+  if (!PROMOTABLE_ROLES.includes(nextRole)) {
+    return delay({
+      ok: false,
+      error: "The admin role can only be granted directly in the database.",
+    });
+  }
+  const record = FAKE_USERS.find((u) => u.id === userId);
+  if (!record) return delay({ ok: false, error: "User not found." });
+  if (record.role === "admin") {
+    return delay({ ok: false, error: "Admin accounts can't be changed from the UI." });
+  }
+
+  record.role = nextRole;
+  const { password: _password, ...publicUser } = record;
+  return delay({ ok: true, data: publicUser }, 400);
+}

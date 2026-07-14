@@ -3,14 +3,19 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import { OAuthButtons } from "../components/OAuthButtons";
 import { OtpInput } from "../components/OtpInput";
+import { DEMO_ACCOUNTS } from "../mock/mockBackend";
+
+type Mode = "login" | "signup";
 
 export default function LoginPage() {
   const {
     loginStage,
+    authFlow,
     pendingLogin,
     error,
     isSubmitting,
     submitCredentials,
+    submitSignup,
     submitOtp,
     resendCode,
     resetLoginFlow,
@@ -19,15 +24,39 @@ export default function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation() as { state?: { from?: string } };
 
+  const [mode, setMode] = useState<Mode>("login");
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [confirmMismatch, setConfirmMismatch] = useState(false);
   const [otp, setOtp] = useState("");
+  const [showDemoAccounts, setShowDemoAccounts] = useState(false);
 
   const isFlipped = loginStage === "otp";
 
-  async function handleCredentialsSubmit(e: FormEvent) {
+  function switchMode(next: Mode) {
+    setMode(next);
+    setPassword("");
+    setConfirmPassword("");
+    setConfirmMismatch(false);
+    clearError();
+  }
+
+  async function handleLoginSubmit(e: FormEvent) {
     e.preventDefault();
     await submitCredentials(email, password);
+    setOtp("");
+  }
+
+  async function handleSignupSubmit(e: FormEvent) {
+    e.preventDefault();
+    if (password !== confirmPassword) {
+      setConfirmMismatch(true);
+      return;
+    }
+    setConfirmMismatch(false);
+    await submitSignup(name, email, password);
     setOtp("");
   }
 
@@ -41,68 +70,180 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen bg-canvas flex flex-col">
-     
+      <header className="px-6 sm:px-10 py-6 flex items-center gap-2.5">
+        <LogoMark />
+        <span className="font-display font-semibold text-lg tracking-tight text-ink">
+          SecureGate
+        </span>
+      </header>
 
       <main className="flex-1 grid place-items-center px-4 pb-16">
         <div className="w-full max-w-sm">
           <div className="keycard-perspective">
             <div className={`keycard relative ${isFlipped ? "is-flipped" : ""}`}>
-
+              {/* FRONT: login or signup form + OAuth */}
               <div
-                className={`keycard-face rounded-2xl border border-line bg-surface shadow-[0_1px_2px_rgba(20,22,43,0.04),0_12px_32px_-16px_rgba(36,29,110,0.18)] p-7 sm:p-8 ${
-                  isFlipped ? "invisible pointer-events-none absolute inset-0" : ""
-                }`}
+                className={`keycard-face rounded-2xl border border-line bg-surface shadow-[0_1px_2px_rgba(20,22,43,0.04),0_12px_32px_-16px_rgba(36,29,110,0.18)] p-7 sm:p-8 ${isFlipped ? "invisible pointer-events-none absolute inset-0" : ""
+                  }`}
               >
-                <h1 className="font-display text-2xl font-semibold text-ink tracking-tight">
-                  Welcome back
+                <div className="flex rounded-lg bg-canvas p-1 text-sm font-medium">
+                  <button
+                    type="button"
+                    onClick={() => switchMode("login")}
+                    className={`flex-1 rounded-md py-1.5 transition ${mode === "login" ? "bg-surface text-ink shadow-sm" : "text-ink-soft"
+                      }`}
+                  >
+                    Sign in
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => switchMode("signup")}
+                    className={`flex-1 rounded-md py-1.5 transition ${mode === "signup" ? "bg-surface text-ink shadow-sm" : "text-ink-soft"
+                      }`}
+                  >
+                    Create account
+                  </button>
+                </div>
+
+                <h1 className="mt-5 font-display text-2xl font-semibold text-ink tracking-tight">
+                  {mode === "login" ? "Welcome back" : "Create your account"}
                 </h1>
                 <p className="mt-1.5 text-sm text-ink-soft">
-                  Sign in to continue to your dashboard.
+                  {mode === "login"
+                    ? "Sign in to continue to your dashboard."
+                    : "New accounts start with the standard user role."}
                 </p>
 
-                <form onSubmit={handleCredentialsSubmit} className="mt-6 grid gap-4">
-                  <Field label="Email" htmlFor="email">
-                    <input
-                      id="email"
-                      type="email"
-                      required
-                      autoComplete="email"
-                      value={email}
-                      onChange={(e) => {
-                        setEmail(e.target.value);
-                        clearError();
-                      }}
-                      placeholder="you@company.com"
-                      className="w-full rounded-lg border border-line bg-surface px-3.5 py-2.5 text-sm text-ink outline-none transition focus:border-indigo"
-                    />
-                  </Field>
+                {mode === "login" ? (
+                  <form onSubmit={handleLoginSubmit} className="mt-6 grid gap-4">
+                    <Field label="Email" htmlFor="email">
+                      <input
+                        id="email"
+                        type="email"
+                        required
+                        autoComplete="email"
+                        value={email}
+                        onChange={(e) => {
+                          setEmail(e.target.value);
+                          clearError();
+                        }}
+                        placeholder="you@company.com"
+                        className="w-full rounded-lg border border-line bg-surface px-3.5 py-2.5 text-sm text-ink outline-none transition focus:border-indigo"
+                      />
+                    </Field>
 
-                  <Field label="Password" htmlFor="password">
-                    <input
-                      id="password"
-                      type="password"
-                      required
-                      autoComplete="current-password"
-                      value={password}
-                      onChange={(e) => {
-                        setPassword(e.target.value);
-                        clearError();
-                      }}
-                      placeholder="••••••••"
-                      className="w-full rounded-lg border border-line bg-surface px-3.5 py-2.5 text-sm text-ink outline-none transition focus:border-indigo"
-                    />
-                  </Field>
+                    <Field label="Password" htmlFor="password">
+                      <input
+                        id="password"
+                        type="password"
+                        required
+                        autoComplete="current-password"
+                        value={password}
+                        onChange={(e) => {
+                          setPassword(e.target.value);
+                          clearError();
+                        }}
+                        placeholder="••••••••"
+                        className="w-full rounded-lg border border-line bg-surface px-3.5 py-2.5 text-sm text-ink outline-none transition focus:border-indigo"
+                      />
+                    </Field>
 
-                  {error && !isFlipped && <ErrorNote message={error} />}
+                    {error && !isFlipped && (
+                      <ErrorNote
+                        message={error}
+                        action={
+                          error.includes("Create one")
+                            ? { label: "Create an account", onClick: () => switchMode("signup") }
+                            : undefined
+                        }
+                      />
+                    )}
 
-                  <button
-                    type="submit"
-                    disabled={isSubmitting}
-                    className="mt-1 w-full rounded-lg bg-indigo py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-deep disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {isSubmitting ? "Checking credentials…" : "Continue"}
-                  </button>
-                </form>
+                    <button
+                      type="submit"
+                      disabled={isSubmitting}
+                      className="mt-1 w-full rounded-lg bg-indigo py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-deep disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {isSubmitting ? "Checking credentials…" : "Continue"}
+                    </button>
+                  </form>
+                ) : (
+                  <form onSubmit={handleSignupSubmit} className="mt-6 grid gap-4">
+                    <Field label="Full name" htmlFor="name">
+                      <input
+                        id="name"
+                        type="text"
+                        required
+                        autoComplete="name"
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        placeholder="Jordan Lee"
+                        className="w-full rounded-lg border border-line bg-surface px-3.5 py-2.5 text-sm text-ink outline-none transition focus:border-indigo"
+                      />
+                    </Field>
+
+                    <Field label="Email" htmlFor="signup-email">
+                      <input
+                        id="signup-email"
+                        type="email"
+                        required
+                        autoComplete="email"
+                        value={email}
+                        onChange={(e) => {
+                          setEmail(e.target.value);
+                          clearError();
+                        }}
+                        placeholder="you@company.com"
+                        className="w-full rounded-lg border border-line bg-surface px-3.5 py-2.5 text-sm text-ink outline-none transition focus:border-indigo"
+                      />
+                    </Field>
+
+                    <Field label="Password" htmlFor="signup-password">
+                      <input
+                        id="signup-password"
+                        type="password"
+                        required
+                        minLength={8}
+                        autoComplete="new-password"
+                        value={password}
+                        onChange={(e) => {
+                          setPassword(e.target.value);
+                          setConfirmMismatch(false);
+                          clearError();
+                        }}
+                        placeholder="At least 8 characters"
+                        className="w-full rounded-lg border border-line bg-surface px-3.5 py-2.5 text-sm text-ink outline-none transition focus:border-indigo"
+                      />
+                    </Field>
+
+                    <Field label="Confirm password" htmlFor="confirm-password">
+                      <input
+                        id="confirm-password"
+                        type="password"
+                        required
+                        autoComplete="new-password"
+                        value={confirmPassword}
+                        onChange={(e) => {
+                          setConfirmPassword(e.target.value);
+                          setConfirmMismatch(false);
+                        }}
+                        placeholder="Repeat your password"
+                        className="w-full rounded-lg border border-line bg-surface px-3.5 py-2.5 text-sm text-ink outline-none transition focus:border-indigo"
+                      />
+                    </Field>
+
+                    {confirmMismatch && <ErrorNote message="Passwords don't match." />}
+                    {error && !isFlipped && !confirmMismatch && <ErrorNote message={error} />}
+
+                    <button
+                      type="submit"
+                      disabled={isSubmitting}
+                      className="mt-1 w-full rounded-lg bg-indigo py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-deep disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {isSubmitting ? "Creating account…" : "Create account"}
+                    </button>
+                  </form>
+                )}
 
                 <div className="my-6 flex items-center gap-3">
                   <span className="h-px flex-1 bg-line" />
@@ -112,12 +253,37 @@ export default function LoginPage() {
 
                 <OAuthButtons />
 
+                {mode === "login" && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setShowDemoAccounts((v) => !v)}
+                      className="mt-6 w-full text-center text-xs font-medium text-indigo hover:underline"
+                    >
+                      {showDemoAccounts ? "Hide" : "Show"} demo accounts
+                    </button>
+                    {showDemoAccounts && (
+                      <div className="mt-3 rounded-lg bg-indigo-tint p-3 font-mono text-[11px] leading-relaxed text-indigo-deep">
+                        {DEMO_ACCOUNTS.map((acc) => (
+                          <div key={acc.email} className="flex justify-between gap-2">
+                            <span>{acc.email}</span>
+                            <span className="opacity-70">{acc.password}</span>
+                            <span className="uppercase opacity-70">{acc.role}</span>
+                          </div>
+                        ))}
+                        <p className="mt-2 opacity-70">
+                          admin can't be self-served — see note below.
+                        </p>
+                      </div>
+                    )}
+                  </>
+                )}
               </div>
 
+              {/* BACK: OTP verification — shared by both login and signup */}
               <div
-                className={`keycard-face back relative overflow-hidden rounded-2xl border border-line bg-surface shadow-[0_1px_2px_rgba(20,22,43,0.04),0_12px_32px_-16px_rgba(36,29,110,0.18)] p-7 sm:p-8 ${
-                  !isFlipped ? "invisible pointer-events-none absolute inset-0" : ""
-                }`}
+                className={`keycard-face back relative overflow-hidden rounded-2xl border border-line bg-surface shadow-[0_1px_2px_rgba(20,22,43,0.04),0_12px_32px_-16px_rgba(36,29,110,0.18)] p-7 sm:p-8 ${!isFlipped ? "invisible pointer-events-none absolute inset-0" : ""
+                  }`}
               >
                 {isFlipped && <div className="scanline" aria-hidden="true" />}
 
@@ -133,10 +299,12 @@ export default function LoginPage() {
                 </button>
 
                 <h1 className="mt-3 font-display text-2xl font-semibold text-ink tracking-tight">
-                  Verify it's you
+                  {authFlow === "signup" ? "Confirm your email" : "Verify it's you"}
                 </h1>
                 <p className="mt-1.5 text-sm text-ink-soft">
-                  Enter the 6-digit code sent to{" "}
+                  {authFlow === "signup"
+                    ? "Enter the 6-digit code we sent to activate your account at "
+                    : "Enter the 6-digit code sent to "}
                   <span className="font-medium text-ink">{pendingLogin?.email}</span>.
                 </p>
 
@@ -157,7 +325,11 @@ export default function LoginPage() {
                     disabled={isSubmitting || otp.length !== 6}
                     className="w-full rounded-lg bg-indigo py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-deep disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    {isSubmitting ? "Verifying…" : "Verify & sign in"}
+                    {isSubmitting
+                      ? "Verifying…"
+                      : authFlow === "signup"
+                        ? "Verify & create account"
+                        : "Verify & sign in"}
                   </button>
                 </form>
 
@@ -172,7 +344,7 @@ export default function LoginPage() {
             </div>
           </div>
 
-          
+
         </div>
       </main>
     </div>
@@ -196,10 +368,21 @@ function Field({
   );
 }
 
-function ErrorNote({ message }: { message: string }) {
+function ErrorNote({
+  message,
+  action,
+}: {
+  message: string;
+  action?: { label: string; onClick: () => void };
+}) {
   return (
-    <p className="rounded-md bg-red-50 px-3 py-2 text-xs font-medium text-bad" role="alert">
-      {message}
+    <p className="flex flex-wrap items-center gap-1.5 rounded-md bg-red-50 px-3 py-2 text-xs font-medium text-bad" role="alert">
+      <span>{message}</span>
+      {action && (
+        <button type="button" onClick={action.onClick} className="underline underline-offset-2">
+          {action.label}
+        </button>
+      )}
     </p>
   );
 }
