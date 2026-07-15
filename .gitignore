@@ -1,1 +1,4 @@
 /backend-mern/node_modules
+/backend-mern/package-lock.json
+/backend-mern/.env
+/backend-mern/scripts
