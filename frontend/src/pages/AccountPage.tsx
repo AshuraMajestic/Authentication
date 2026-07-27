@@ -23,8 +23,12 @@ export default function AccountPage() {
       </div>
 
       <div className="mt-6 rounded-xl border border-line bg-surface p-5">
-        <p className="text-xs font-medium text-ink-soft">Access token (mock, decoded)</p>
-        <pre className="mt-2 overflow-x-auto rounded-lg bg-indigo-tint p-3 font-mono text-[11px] leading-relaxed text-indigo-deep">
+        <p className="text-xs font-medium text-ink-soft">Session</p>
+        <p className="mt-2 text-sm text-ink-soft">
+          Your session is stored in a secure, httpOnly cookie managed by the server —
+          it isn&apos;t readable from the browser, so there&apos;s no token to display here.
+        </p>
+        <pre className="mt-3 overflow-x-auto rounded-lg bg-indigo-tint p-3 font-mono text-[11px] leading-relaxed text-indigo-deep">
 {JSON.stringify(user, null, 2)}
         </pre>
       </div>

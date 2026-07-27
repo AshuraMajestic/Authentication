@@ -6,7 +6,7 @@ import {
   updateUserRole,
   type DirectoryUser,
   type PromotableRole,
-} from "../mock/mockBackend";
+} from "../api";
 import { useAuth } from "../hooks/useAuth";
 
 export default function AdminPage() {
@@ -52,7 +52,6 @@ export default function AdminPage() {
       <h1 className="mt-1 font-display text-2xl font-semibold tracking-tight text-ink">
         User &amp; role management
       </h1>
-
 
       <div className="mt-6 overflow-hidden rounded-xl border border-line bg-surface">
         <table className="w-full text-left text-sm">

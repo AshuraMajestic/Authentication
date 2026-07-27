@@ -3,7 +3,6 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import { OAuthButtons } from "../components/OAuthButtons";
 import { OtpInput } from "../components/OtpInput";
-import { DEMO_ACCOUNTS } from "../mock/mockBackend";
 
 type Mode = "login" | "signup";
 
@@ -31,7 +30,6 @@ export default function LoginPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [confirmMismatch, setConfirmMismatch] = useState(false);
   const [otp, setOtp] = useState("");
-  const [showDemoAccounts, setShowDemoAccounts] = useState(false);
 
   const isFlipped = loginStage === "otp";
 
@@ -252,32 +250,6 @@ export default function LoginPage() {
                 </div>
 
                 <OAuthButtons />
-
-                {mode === "login" && (
-                  <>
-                    <button
-                      type="button"
-                      onClick={() => setShowDemoAccounts((v) => !v)}
-                      className="mt-6 w-full text-center text-xs font-medium text-indigo hover:underline"
-                    >
-                      {showDemoAccounts ? "Hide" : "Show"} demo accounts
-                    </button>
-                    {showDemoAccounts && (
-                      <div className="mt-3 rounded-lg bg-indigo-tint p-3 font-mono text-[11px] leading-relaxed text-indigo-deep">
-                        {DEMO_ACCOUNTS.map((acc) => (
-                          <div key={acc.email} className="flex justify-between gap-2">
-                            <span>{acc.email}</span>
-                            <span className="opacity-70">{acc.password}</span>
-                            <span className="uppercase opacity-70">{acc.role}</span>
-                          </div>
-                        ))}
-                        <p className="mt-2 opacity-70">
-                          admin can't be self-served — see note below.
-                        </p>
-                      </div>
-                    )}
-                  </>
-                )}
               </div>
 
               {/* BACK: OTP verification — shared by both login and signup */}
@@ -308,13 +280,6 @@ export default function LoginPage() {
                   <span className="font-medium text-ink">{pendingLogin?.email}</span>.
                 </p>
 
-                {pendingLogin?.devOtpHint && (
-                  <p className="mt-2 rounded-md bg-amber-tint px-3 py-2 font-mono text-xs text-ink">
-                    Demo mode — no real backend, so here's the code:{" "}
-                    <span className="font-semibold">{pendingLogin.devOtpHint}</span>
-                  </p>
-                )}
-
                 <form onSubmit={handleOtpSubmit} className="mt-5 grid gap-4">
                   <OtpInput value={otp} onChange={setOtp} disabled={isSubmitting} />
 
@@ -343,8 +308,6 @@ export default function LoginPage() {
               </div>
             </div>
           </div>
-
-
         </div>
       </main>
     </div>

@@ -2,6 +2,9 @@ import type { ApiResult } from "../types/auth";
 import { api } from "./client";
 import { ENDPOINTS } from "./endpoints";
 
+export const PROMOTABLE_ROLES = ["user", "manager"] as const;
+export type PromotableRole = (typeof PROMOTABLE_ROLES)[number];
+
 export interface DirectoryUser {
   id: string;
   name: string;
