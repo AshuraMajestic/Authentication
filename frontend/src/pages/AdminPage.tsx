@@ -20,7 +20,7 @@ export default function AdminPage() {
 
   async function refresh() {
     const result = await listUsers();
-    if (result.ok) setUsers(result.data);
+    if (result.ok) setUsers(result.data?.users);
   }
 
   useEffect(() => {
@@ -37,9 +37,9 @@ export default function AdminPage() {
     setSavingId(null);
 
     if (result.ok) {
-      setFeedback({ id: target.id, message: `Updated to ${result.data.role}.`, ok: true });
+      setFeedback({ id: target.id, message: `Updated to ${result.data?.user?.role}.`, ok: true });
       setUsers((prev) =>
-        prev ? prev.map((u) => (u.id === target.id ? { ...u, role: result.data.role } : u)) : prev
+        prev ? prev.map((u) => (u.id === target.id ? { ...u, role: result.data?.user?.role } : u)) : prev
       );
     } else {
       setFeedback({ id: target.id, message: result.error, ok: false });

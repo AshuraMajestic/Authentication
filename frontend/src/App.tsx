@@ -7,6 +7,7 @@ import AdminPage from "./pages/AdminPage";
 import ManagerPage from "./pages/ManagerPage";
 import AccountPage from "./pages/AccountPage";
 import UnauthorizedPage from "./pages/UnauthorizedPage";
+import OAuthCallbackPage from "./pages/OAuthCallbackPage";
 
 export default function App() {
   return (
@@ -64,6 +65,7 @@ export default function App() {
 
           <Route path="/unauthorized" element={<UnauthorizedPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
+          <Route path="/oauth/callback" element={<OAuthCallbackPage />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>

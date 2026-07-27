@@ -9,9 +9,9 @@ import {
 } from "react";
 import type { OAuthProvider, Role, User } from "../types/auth";
 import {
+  bootstrapSession,
   fetchCurrentUser,
   logoutOnServer,
-  refreshSession,
   registerUser,
   requestPasswordLogin,
   resendOtp,
@@ -19,8 +19,10 @@ import {
   verifyOtpAndLogin,
 } from "../api";
 
-// no client-visible expiry to schedule against.
-const SILENT_REFRESH_INTERVAL_MS = 25 * 60 * 1000; 
+// Access token lives in memory only, so there's no client-visible expiry to
+// schedule against — this just pings /refresh periodically to mint a new one
+// off the httpOnly refresh cookie before the access token goes stale.
+const SILENT_REFRESH_INTERVAL_MS = 25 * 60 * 1000;
 
 type LoginStage = "credentials" | "otp";
 type AuthFlow = "login" | "signup";
@@ -43,6 +45,7 @@ interface AuthContextValue {
   submitOtp: (code: string) => Promise<boolean>;
   resendCode: () => Promise<void>;
   loginWithOAuth: (provider: OAuthProvider) => void;
+  setUserFromOAuth: (user: User) => void;
   resetLoginFlow: () => void;
   logout: () => void;
   clearError: () => void;
@@ -62,15 +65,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const refreshTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // On mount there's no access token yet (it's in-memory, wiped on reload),
+  // only the httpOnly refresh cookie. So bootstrap via /refresh first to mint
+  // one, then confirm identity via /me.
   useEffect(() => {
     let cancelled = false;
 
     (async () => {
-      const result = await fetchCurrentUser();
+      const refreshResult = await bootstrapSession();
       if (cancelled) return;
 
-      if (result.ok) {
-        setUser(result.data.user);
+      if (!refreshResult.ok) {
+        setUser(null);
+        setStatus("unauthenticated");
+        return;
+      }
+
+      const me = await fetchCurrentUser();
+      if (cancelled) return;
+
+      if (me.ok) {
+        setUser(me.data.user);
         setStatus("authenticated");
       } else {
         setUser(null);
@@ -88,7 +103,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (status !== "authenticated") return;
 
     refreshTimer.current = setInterval(async () => {
-      const result = await refreshSession();
+      const result = await bootstrapSession();
       if (!result.ok) {
         setUser(null);
         setStatus("unauthenticated");
@@ -167,6 +182,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     startOAuth(provider);
   }, []);
 
+  // Called by the /oauth/callback page once it has stored the access token
+  // and confirmed identity via /me — skips straight to authenticated.
+  const setUserFromOAuth = useCallback((oauthUser: User) => {
+    setUser(oauthUser);
+    setStatus("authenticated");
+  }, []);
+
   const resetLoginFlow = useCallback(() => {
     setLoginStage("credentials");
     setAuthFlow("login");
@@ -200,6 +222,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       submitOtp,
       resendCode,
       loginWithOAuth,
+      setUserFromOAuth,
       resetLoginFlow,
       logout,
       clearError,
@@ -218,6 +241,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       submitOtp,
       resendCode,
       loginWithOAuth,
+      setUserFromOAuth,
       resetLoginFlow,
       logout,
       clearError,
