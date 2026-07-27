@@ -7,26 +7,26 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import type { OAuthProvider, Role, Session, User } from "../types/auth";
+import type { OAuthProvider, Role, User } from "../types/auth";
 import {
+  fetchCurrentUser,
   logoutOnServer,
   refreshSession,
   registerUser,
   requestPasswordLogin,
   resendOtp,
-  signInWithOAuth,
+  startOAuth,
   verifyOtpAndLogin,
-} from "../mock/mockBackend";
+} from "../api";
 
-const SESSION_STORAGE_KEY = "auth-frontend:session";
+// no client-visible expiry to schedule against.
+const SILENT_REFRESH_INTERVAL_MS = 25 * 60 * 1000; 
 
 type LoginStage = "credentials" | "otp";
-
 type AuthFlow = "login" | "signup";
 
 interface PendingLogin {
   email: string;
-  devOtpHint: string;
 }
 
 interface AuthContextValue {
@@ -42,7 +42,7 @@ interface AuthContextValue {
   submitSignup: (name: string, email: string, password: string) => Promise<void>;
   submitOtp: (code: string) => Promise<boolean>;
   resendCode: () => Promise<void>;
-  loginWithOAuth: (provider: OAuthProvider) => Promise<void>;
+  loginWithOAuth: (provider: OAuthProvider) => void;
   resetLoginFlow: () => void;
   logout: () => void;
   clearError: () => void;
@@ -52,64 +52,53 @@ interface AuthContextValue {
 
 export const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
-function readStoredSession(): Session | null {
-  try {
-    const raw = localStorage.getItem(SESSION_STORAGE_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as Session;
-    if (parsed.tokens.expiresAt < Date.now()) return null;
-    return parsed;
-  } catch {
-    return null;
-  }
-}
-
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [session, setSession] = useState<Session | null>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [status, setStatus] = useState<AuthContextValue["status"]>("loading");
   const [loginStage, setLoginStage] = useState<LoginStage>("credentials");
   const [authFlow, setAuthFlow] = useState<AuthFlow>("login");
   const [pendingLogin, setPendingLogin] = useState<PendingLogin | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const persist = useCallback((next: Session | null) => {
-    setSession(next);
-    if (next) {
-      localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(next));
-    } else {
-      localStorage.removeItem(SESSION_STORAGE_KEY);
-    }
-  }, []);
-
+  const refreshTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
-    const stored = readStoredSession();
-    setSession(stored);
-    setStatus(stored ? "authenticated" : "unauthenticated");
-  }, []);
+    let cancelled = false;
 
+    (async () => {
+      const result = await fetchCurrentUser();
+      if (cancelled) return;
 
-  useEffect(() => {
-    if (refreshTimer.current) clearTimeout(refreshTimer.current);
-    if (!session) return;
-
-    const msUntilRefresh = Math.max(session.tokens.expiresAt - Date.now() - 60_000, 5_000);
-    refreshTimer.current = setTimeout(async () => {
-      const result = await refreshSession(session.tokens.refreshToken, session.user.id);
       if (result.ok) {
-        persist({ user: session.user, tokens: result.data.tokens });
+        setUser(result.data.user);
+        setStatus("authenticated");
       } else {
-        persist(null);
+        setUser(null);
         setStatus("unauthenticated");
       }
-    }, msUntilRefresh);
+    })();
 
     return () => {
-      if (refreshTimer.current) clearTimeout(refreshTimer.current);
+      cancelled = true;
     };
-  }, [session, persist]);
+  }, []);
+
+  useEffect(() => {
+    if (refreshTimer.current) clearInterval(refreshTimer.current);
+    if (status !== "authenticated") return;
+
+    refreshTimer.current = setInterval(async () => {
+      const result = await refreshSession();
+      if (!result.ok) {
+        setUser(null);
+        setStatus("unauthenticated");
+      }
+    }, SILENT_REFRESH_INTERVAL_MS);
+
+    return () => {
+      if (refreshTimer.current) clearInterval(refreshTimer.current);
+    };
+  }, [status]);
 
   const clearError = useCallback(() => setError(null), []);
 
@@ -124,9 +113,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
     setAuthFlow("login");
-    setPendingLogin({ email: result.data.otpSentTo, devOtpHint: result.data.devOtpHint });
+    setPendingLogin({ email: result.data.otpSentTo });
     setLoginStage("otp");
   }, []);
+
   const submitSignup = useCallback(async (name: string, email: string, password: string) => {
     setIsSubmitting(true);
     setError(null);
@@ -138,7 +128,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
     setAuthFlow("signup");
-    setPendingLogin({ email: result.data.otpSentTo, devOtpHint: result.data.devOtpHint });
+    setPendingLogin({ email: result.data.otpSentTo });
     setLoginStage("otp");
   }, []);
 
@@ -154,42 +144,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setError(result.error);
         return false;
       }
-      persist({ user: result.data.user, tokens: result.data.tokens });
+      setUser(result.data.user);
       setStatus("authenticated");
       setLoginStage("credentials");
       setPendingLogin(null);
       return true;
     },
-    [pendingLogin, persist]
+    [pendingLogin]
   );
 
   const resendCode = useCallback(async () => {
     if (!pendingLogin) return;
     setError(null);
     const result = await resendOtp(pendingLogin.email);
-    if (result.ok) {
-      setPendingLogin({ email: pendingLogin.email, devOtpHint: result.data.devOtpHint });
-    } else {
+    if (!result.ok) {
       setError(result.error);
     }
   }, [pendingLogin]);
 
-  const loginWithOAuth = useCallback(
-    async (provider: OAuthProvider) => {
-      setIsSubmitting(true);
-      setError(null);
-      const result = await signInWithOAuth(provider);
-      setIsSubmitting(false);
-
-      if (!result.ok) {
-        setError(result.error);
-        return;
-      }
-      persist({ user: result.data.user, tokens: result.data.tokens });
-      setStatus("authenticated");
-    },
-    [persist]
-  );
+  const loginWithOAuth = useCallback((provider: OAuthProvider) => {
+    setError(null);
+    startOAuth(provider);
+  }, []);
 
   const resetLoginFlow = useCallback(() => {
     setLoginStage("credentials");
@@ -200,19 +176,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(() => {
     void logoutOnServer();
-    persist(null);
+    setUser(null);
     setStatus("unauthenticated");
     resetLoginFlow();
-  }, [persist, resetLoginFlow]);
+  }, [resetLoginFlow]);
 
   const hasRole = useCallback(
-    (...roles: Role[]) => !!session && roles.includes(session.user.role),
-    [session]
+    (...roles: Role[]) => !!user && roles.includes(user.role),
+    [user]
   );
 
   const value = useMemo<AuthContextValue>(
     () => ({
-      user: session?.user ?? null,
+      user,
       status,
       loginStage,
       authFlow,
@@ -230,7 +206,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       hasRole,
     }),
     [
-      session,
+      user,
       status,
       loginStage,
       authFlow,
