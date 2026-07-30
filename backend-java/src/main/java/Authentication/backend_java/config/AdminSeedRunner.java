@@ -1,11 +1,13 @@
 package Authentication.backend_java.config;
 
-import org.slf4j.LoggerFactory;
 import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
+import Authentication.backend_java.model.Role;
+import Authentication.backend_java.model.User;
 import Authentication.backend_java.repository.UserRepository;
 
 @Component

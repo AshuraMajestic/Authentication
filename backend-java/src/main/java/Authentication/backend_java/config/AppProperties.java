@@ -56,7 +56,7 @@ public class AppProperties {
     }
 
     public static class Mail {
-        private String from = "SecureGate <no-reply@securegate.dev>";
+        private String from = "<ashuramajestic@gmail.com>";
 
         public String getFrom() { return from; }
         public void setFrom(String from) { this.from = from; }
