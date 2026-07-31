@@ -5,12 +5,11 @@ import java.util.Optional;
 
 import org.springframework.data.mongodb.repository.MongoRepository;
 
-import Authentication.backend_java.config.AppProperties;
 import Authentication.backend_java.model.Otp;
 
 public interface OtpRepository extends MongoRepository<Otp, String> {
 
-    List<AppProperties.Otp> findAllByEmailAndPurposeAndConsumedAtIsNull(String email, Otp.OtpPurpose purpose);
+    List<Otp> findAllByEmailAndPurposeAndConsumedAtIsNull(String email, Otp.OtpPurpose purpose);
 
     Optional<Otp> findFirstByEmailAndPurposeAndConsumedAtIsNullOrderByCreatedAtDesc(
             String email, Otp.OtpPurpose purpose);

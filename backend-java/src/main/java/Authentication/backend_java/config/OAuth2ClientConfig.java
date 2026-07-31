@@ -1,16 +1,15 @@
 package Authentication.backend_java.config;
 
+import java.util.ArrayList;
+import java.util.Map;
+
+import org.springframework.boot.security.oauth2.client.autoconfigure.OAuth2ClientProperties;
+import org.springframework.boot.security.oauth2.client.autoconfigure.OAuth2ClientPropertiesMapper;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.oauth2.client.registration.ClientRegistration;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.oauth2.client.registration.InMemoryClientRegistrationRepository;
-
-import java.util.ArrayList;
-import java.util.Map;
-
-import org.springframework.boot.security.oauth2.client.autoconfigure.OAuth2ClientProperties;
-import org.springframework.boot.security.oauth2.client.autoconfigure.OAuth2ClientPropertiesRegistrationAdapter;
 
 @Configuration
 public class OAuth2ClientConfig {
@@ -27,7 +26,7 @@ public class OAuth2ClientConfig {
         }
 
         Map<String, ClientRegistration> registrations =
-                OAuth2ClientPropertiesRegistrationAdapter.getClientRegistrations(properties);
+                new OAuth2ClientPropertiesMapper(properties).asClientRegistrations();
         return new InMemoryClientRegistrationRepository(new ArrayList<>(registrations.values()));
     }
 

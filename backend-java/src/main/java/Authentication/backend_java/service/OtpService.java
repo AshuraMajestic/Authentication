@@ -1,12 +1,12 @@
 package Authentication.backend_java.service;
 
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.stereotype.Service;
-
 import java.security.SecureRandom;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Optional;
+
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
 
 import Authentication.backend_java.config.AppProperties;
 import Authentication.backend_java.exception.ApiException;

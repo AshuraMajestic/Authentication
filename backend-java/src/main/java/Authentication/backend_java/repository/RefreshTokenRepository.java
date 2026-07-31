@@ -1,11 +1,10 @@
 package Authentication.backend_java.repository;
 
-import com.securegate.model.RefreshToken;
-
-import org.springframework.data.mongodb.repository.MongoRepository;
 
 import java.util.List;
 import java.util.Optional;
+
+import org.springframework.data.mongodb.repository.MongoRepository;
 
 import Authentication.backend_java.model.RefreshToken;
 

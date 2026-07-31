@@ -1,6 +1,7 @@
 package Authentication.backend_java.config;
 
-import jakarta.servlet.http.HttpServletResponse;
+import java.time.Duration;
+import java.util.List;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -17,14 +18,13 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
-import java.time.Duration;
-import java.util.List;
-
 import Authentication.backend_java.exception.ErrorResponse;
 import Authentication.backend_java.filter.RateLimitFilter;
 import Authentication.backend_java.repository.UserRepository;
+import Authentication.backend_java.security.JwtAuthenticationFilter;
 import Authentication.backend_java.security.JwtService;
 import Authentication.backend_java.security.OAuth2SuccessHandler;
+import jakarta.servlet.http.HttpServletResponse;
 import tools.jackson.databind.ObjectMapper;
 
 @Configuration
