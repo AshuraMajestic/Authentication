@@ -7,6 +7,7 @@ import Authentication.backend_java.dto.response.UserResponse;
 import Authentication.backend_java.exception.ApiException;
 import Authentication.backend_java.model.User;
 import Authentication.backend_java.repository.UserRepository;
+import Authentication.backend_java.security.JwtAuthenticationFilter;
 
 @RestController
 public class UserController {

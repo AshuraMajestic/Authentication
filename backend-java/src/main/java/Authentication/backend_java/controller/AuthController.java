@@ -1,13 +1,13 @@
 package Authentication.backend_java.controller;
 
-import jakarta.servlet.http.Cookie;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.validation.Valid;
-
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 import Authentication.backend_java.dto.request.LoginRequest;
 import Authentication.backend_java.dto.request.ResendOtpRequest;
@@ -17,8 +17,12 @@ import Authentication.backend_java.dto.response.AuthResponse;
 import Authentication.backend_java.dto.response.OtpSentResponse;
 import Authentication.backend_java.dto.response.UserResponse;
 import Authentication.backend_java.exception.ApiException;
+import Authentication.backend_java.security.JwtAuthenticationFilter;
 import Authentication.backend_java.security.RefreshCookieFactory;
 import Authentication.backend_java.service.AuthService;
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/auth")

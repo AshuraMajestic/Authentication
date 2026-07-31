@@ -1,10 +1,13 @@
 package Authentication.backend_java.controller;
-import jakarta.validation.Valid;
+import java.util.List;
 
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 import Authentication.backend_java.dto.request.UpdateRoleRequest;
 import Authentication.backend_java.dto.response.AdminUserResponse;
@@ -12,7 +15,9 @@ import Authentication.backend_java.exception.ApiException;
 import Authentication.backend_java.model.Role;
 import Authentication.backend_java.model.User;
 import Authentication.backend_java.repository.UserRepository;
+import Authentication.backend_java.security.JwtAuthenticationFilter;
 import Authentication.backend_java.security.RefreshTokenService;
+import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/admin")
